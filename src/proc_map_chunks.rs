@@ -290,4 +290,9 @@ impl<'a> Iterator for ProcMapChunksIterator<'a> {
         self.index += 1;
         next
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let num_left = self.map_chunks.chunks.len() - self.index;
+        (num_left, Some(num_left))
+    }
 }

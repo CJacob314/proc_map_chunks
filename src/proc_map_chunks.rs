@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Represents a chunk mapped by `/proc/self/maps`
 #[derive(Debug)]
@@ -68,63 +68,17 @@ pub struct ProcMapChunks {
 impl ProcMapChunks {
     /// Gets an instance of the [`ProcMapChunks`] struct based on the current process' `maps` file
     /// (`/proc/self/maps`)
-    pub fn get() -> io::Result<Self> {
-        let path = File::open("/proc/self/maps")?;
-        let reader = BufReader::new(path);
+    pub fn current() -> io::Result<Self> {
+        Self::from_map_file("/proc/self/maps")
+    }
 
-        let mut chunks = Vec::new();
-
-        for line in reader.lines().map_while(Result::ok) {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 6 {
-                continue;
-            }
-
-            // Parse address range
-            let addr_range: Vec<&str> = parts[0].split('-').collect();
-            let low_addr = usize::from_str_radix(addr_range[0], 16)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-            let high_addr = usize::from_str_radix(addr_range[1], 16)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-
-            // Parse permissions
-            let perms = parts[1].to_string();
-
-            // Parse offset
-            let offset = usize::from_str_radix(parts[2], 16)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-
-            // Parse device
-            let dev = parts[3].to_string();
-
-            // Parse inode
-            let inode = parts[4]
-                .parse()
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-
-            // Parse filename (if it exists)
-            let filename = if parts.len() > 5 {
-                Some(PathBuf::from(parts[5..].join(" ")))
-            } else {
-                None
-            };
-
-            let mem = ChunkMemory {
-                low_addr,
-                high_addr,
-            };
-
-            chunks.push(Chunk {
-                mem,
-                perms,
-                offset,
-                dev,
-                inode,
-                filename,
-            });
+    /// Gets an instance of the [`ProcMapChunks`] struct for the process identified by `pid`
+    pub fn from_pid(pid: i32) -> io::Result<Self> {
+        if pid <= 0 {
+            Err(io::Error::new(io::ErrorKind::InvalidInput, "pid must be positive"))
+        } else {
+            Self::from_map_file(format!("/proc/{pid}/maps"))
         }
-
-        Ok(Self { chunks })
     }
 
     /// Returns an iterator ([`ProcMapChunksIterator`]) over all entries in `/proc/self/maps`
@@ -225,6 +179,66 @@ impl ProcMapChunks {
         }
 
         chunks
+    }
+
+    fn from_map_file(path: impl AsRef<Path>) -> io::Result<Self> {
+        let path = path.as_ref();
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+
+        let mut chunks = Vec::new();
+
+        for line in reader.lines().map_while(Result::ok) {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 6 {
+                continue;
+            }
+
+            // Parse address range
+            let addr_range: Vec<&str> = parts[0].split('-').collect();
+            let low_addr = usize::from_str_radix(addr_range[0], 16)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            let high_addr = usize::from_str_radix(addr_range[1], 16)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+            // Parse permissions
+            let perms = parts[1].to_string();
+
+            // Parse offset
+            let offset = usize::from_str_radix(parts[2], 16)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+            // Parse device
+            let dev = parts[3].to_string();
+
+            // Parse inode
+            let inode = parts[4]
+                .parse()
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+            // Parse filename (if it exists)
+            let filename = if parts.len() > 5 {
+                Some(PathBuf::from(parts[5..].join(" ")))
+            } else {
+                None
+            };
+
+            let mem = ChunkMemory {
+                low_addr,
+                high_addr,
+            };
+
+            chunks.push(Chunk {
+                mem,
+                perms,
+                offset,
+                dev,
+                inode,
+                filename,
+            });
+        }
+
+        Ok(Self { chunks })
     }
 }
 

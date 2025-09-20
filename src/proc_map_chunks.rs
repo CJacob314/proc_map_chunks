@@ -4,6 +4,7 @@ use std::io::{self, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 /// Represents a chunk mapped by `/proc/self/maps`
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Chunk {
     /// Chunk's low and high virtual addresses
@@ -82,7 +83,7 @@ impl ProcMapChunks {
     }
 
     /// Returns an iterator ([`ProcMapChunksIterator`]) over all entries in `/proc/self/maps`
-    pub fn iter(&self) -> ProcMapChunksIterator {
+    pub fn iter(&self) -> ProcMapChunksIterator<'_> {
         ProcMapChunksIterator {
             map_chunks: self,
             index: 0,
@@ -92,7 +93,7 @@ impl ProcMapChunks {
 
     /// Similar to [`ProcMapChunks::iter`], but returns an iterator that only iterates
     /// through the chunks between the `low_addr` and `high_addr`.
-    pub fn chunks_between(&self, low_addr: usize, high_addr: usize) -> ProcMapChunksIterator {
+    pub fn chunks_between(&self, low_addr: usize, high_addr: usize) -> ProcMapChunksIterator<'_> {
         let start_index = self
             .chunks
             .iter()

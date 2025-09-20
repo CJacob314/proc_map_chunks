@@ -46,16 +46,20 @@ impl Chunk {
         self.perms.contains('w')
     }
 
-    pub fn low(&self) -> &usize {
-        &self.mem.low_addr
+    pub fn low(&self) -> usize {
+        self.mem.low_addr
     }
 
-    pub fn high(&self) -> &usize {
-        &self.mem.high_addr
+    pub fn high(&self) -> usize {
+        self.mem.high_addr
     }
 
     pub fn filename(&self) -> Option<&PathBuf> {
         self.filename.as_ref()
+    }
+
+    pub fn size(&self) -> usize {
+        self.high() - self.low()
     }
 }
 
@@ -98,14 +102,14 @@ impl ProcMapChunks {
             .chunks
             .iter()
             .enumerate()
-            .find(|&(_, chunk)| chunk.low() >= &low_addr)
+            .find(|&(_, chunk)| chunk.low() >= low_addr)
             .map(|tuple| tuple.0)
             .unwrap_or(usize::MAX);
         let stop_index = self
             .chunks
             .iter()
             .enumerate()
-            .find(|&(_, chunk)| chunk.high() >= &high_addr)
+            .find(|&(_, chunk)| chunk.high() >= high_addr)
             .map(|tuple| tuple.0)
             .unwrap_or(usize::MAX);
 
@@ -119,8 +123,8 @@ impl ProcMapChunks {
     pub fn to_mem_set(&self) -> BTreeSet<ChunkMemory> {
         self.iter()
             .map(|chunk| ChunkMemory {
-                low_addr: *chunk.low(),
-                high_addr: *chunk.high(),
+                low_addr: chunk.low(),
+                high_addr: chunk.high(),
             })
             .collect()
     }

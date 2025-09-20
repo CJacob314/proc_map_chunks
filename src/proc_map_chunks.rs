@@ -243,6 +243,24 @@ impl ProcMapChunks {
     }
 }
 
+impl<'a> IntoIterator for &'a ProcMapChunks {
+    type Item = &'a Chunk;
+    type IntoIter = ProcMapChunksIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl IntoIterator for ProcMapChunks {
+    type Item = Chunk;
+    type IntoIter = std::vec::IntoIter<Chunk>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.chunks.into_iter()
+    }
+}
+
 /// Iterator struct for the [`Chunk`]s inside a [`ProcMapChunks`].
 pub struct ProcMapChunksIterator<'a> {
     /// Reference to the backing ProcMapChunks
